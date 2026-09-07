@@ -15,6 +15,10 @@ const Feed = () => {
     const [comments, setComments] = useState({})
 
 
+    const [editingCommentId, setEditingCommentId] = useState(null)
+    const [editedCommentText, setEditedCommentText] = useState("")
+
+
     // ================= GET POSTS =================
 
    useEffect(() => {
@@ -122,32 +126,74 @@ const handleEdit = async (id) => {
     }
 }
 
+
+// ================= DELETE CAPTION =================
+
+const handleDeleteCaption = async (id) => {
+
+    try {
+
+        const res = await axios.delete(
+            `http://localhost:3000/posts/${id}/caption`,
+            {
+                data: {
+                    username: user.username
+                }
+            }
+        )
+
+        setPosts((prevPosts) =>
+            prevPosts.map((post) =>
+                post._id === id
+                    ? {
+                        ...post,
+                        caption: res.data.post.caption
+                    }
+                    : post
+            )
+        )
+
+    } catch (err) {
+
+        console.error(err)
+
+        alert("Error deleting caption")
+
+    }
+}
+
+
+
+
     // ================= LIKE / UNLIKE =================
 
-    const handleLike = async (id) => {
+const handleLike = async (id) => {
 
-        try {
+    try {
 
-            const res = await axios.put(
-                `http://localhost:3000/posts/${id}/like`
+        const res = await axios.put(
+            `http://localhost:3000/posts/${id}/like`,
+            {
+                username: user.username
+            }
+        )
+
+        setPosts((prevPosts) =>
+            prevPosts.map((post) =>
+                post._id === id
+                    ? res.data.post
+                    : post
             )
+        )
 
-            setPosts((prevPosts) =>
-                prevPosts.map((post) =>
-                    post._id === id
-                        ? res.data.post
-                        : post
-                )
-            )
+    } catch (err) {
 
-        } catch (err) {
+        console.error(err)
 
-            console.error(err)
+        alert("Error liking post")
 
-            alert("Error liking post")
-
-        }
     }
+}
 
 
 
@@ -227,6 +273,40 @@ const handleDeleteComment = async (commentId, postId) => {
 }
 
 
+// ================= EDIT COMMENT =================
+
+const handleEditComment = async (commentId, postId) => {
+
+    try {
+
+        const res = await axios.put(
+            `http://localhost:3000/comments/${commentId}`,
+            {
+                text: editedCommentText,
+                username: user.username
+            }
+        )
+
+        setComments((prevComments) => ({
+            ...prevComments,
+            [postId]: prevComments[postId].map((comment) =>
+                comment._id === commentId
+                    ? res.data.comment
+                    : comment
+            )
+        }))
+
+        setEditingCommentId(null)
+        setEditedCommentText("")
+
+    } catch (err) {
+
+        console.error(err)
+
+        alert("Error updating comment")
+
+    }
+}
 
 
 
@@ -249,60 +329,99 @@ const handleDeleteComment = async (commentId, postId) => {
 
                             {/* IMAGE */}
 
-                            <img
-                                src={post.image}
-                                alt={post.caption}
-                            />
+                            <div className="image-container">
+
+    <img
+        src={post.image}
+        alt={post.caption}
+    />
+
+    {user && user.username === post.username && (
+        <button
+            className="delete-image-btn"
+            onClick={() => handleDelete(post._id)}
+        >
+            🗑️
+        </button>
+    )}
+
+</div>
 
 
-                            {/* CAPTION */}
+ {/* CAPTION */}
 
-                            {
-                                editingId === post._id ? (
+{
+    editingId === post._id ? (
 
-                                    <div>
+        <div>
 
-                                        <input
-                                            type="text"
-                                            value={editedCaption}
-                                            onChange={(e) =>
-                                                setEditedCaption(
-                                                    e.target.value
-                                                )
-                                            }
-                                        />
+            <input
+                type="text"
+                value={editedCaption}
+                onChange={(e) =>
+                    setEditedCaption(e.target.value)
+                }
+            />
 
-                                        <button
-                                            onClick={() =>
-                                                handleEdit(
-                                                    post._id
-                                                )
-                                            }
-                                        >
-                                            Save
-                                        </button>
+            <button
+                onClick={() =>
+                    handleEdit(post._id)
+                }
+            >
+                Save
+            </button>
 
-                                        <button
-                                            onClick={() => {
+            <button
+                onClick={() => {
+                    setEditingId(null)
+                    setEditedCaption("")
+                }}
+            >
+                Cancel
+            </button>
 
-                                                setEditingId(null)
-                                                setEditedCaption("")
+        </div>
 
-                                            }}
-                                        >
-                                            Cancel
-                                        </button>
+    ) : (
 
-                                    </div>
+        <div>
 
-                                ) : (
+            <span>
+                {post.caption}
+            </span>
 
-                                    <p>
-                                        {post.caption}
-                                    </p>
+            {user && user.username === post.username && (
 
-                                )
-                            }
+                <>
+
+                    <button
+                        onClick={() => {
+                            setEditingId(post._id)
+                            setEditedCaption(post.caption)
+                        }}
+                    >
+                        Edit
+                    </button>
+
+                    <button
+                        onClick={() =>
+                            handleDeleteCaption(post._id)
+                        }
+                    >
+                        Delete
+                    </button>
+
+                </>
+
+            )}
+
+        </div>
+
+    )
+}                                      
+                            
+
+
 
 
                             {/* LIKE / UNLIKE */}
@@ -314,10 +433,12 @@ const handleDeleteComment = async (commentId, postId) => {
                             >
 
                                 {
-                                    post.liked
-                                        ? "❤️"
-                                        : "🤍"
-                                }
+                                    
+      post.likedBy?.includes(user.username)
+        ? "❤️"
+        : "🤍"
+}
+                                
 
                                 {" "}
 
@@ -365,22 +486,75 @@ const handleDeleteComment = async (commentId, postId) => {
 
             <div key={comment._id}>
 
-                <p>
-                  
-    💬 <strong>{comment.username}</strong>: {comment.text}
-</p>
-                
-{user && user.username === comment.username && (
-                <button
-                    onClick={() =>
-                        handleDeleteComment(
-                            comment._id,
-                            post._id
-                        )
-                    }
-                >
-                    Delete
-                </button>)}
+                {editingCommentId === comment._id ? (
+
+                    <div>
+
+                        <input
+                            type="text"
+                            value={editedCommentText}
+                            onChange={(e) =>
+                                setEditedCommentText(e.target.value)
+                            }
+                        />
+
+                        <button
+                            onClick={() =>
+                                handleEditComment(
+                                    comment._id,
+                                    post._id
+                                )
+                            }
+                        >
+                            Save
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setEditingCommentId(null)
+                                setEditedCommentText("")
+                            }}
+                        >
+                            Cancel
+                        </button>
+
+                    </div>
+
+                ) : (
+
+                    <p>
+                        💬 <strong>{comment.username}</strong>: {comment.text}
+                    </p>
+
+                )}
+
+                {user && user.username === comment.username && (
+
+                    <>
+
+                        <button
+                            onClick={() => {
+                                setEditingCommentId(comment._id)
+                                setEditedCommentText(comment.text)
+                            }}
+                        >
+                            Edit
+                        </button>
+
+                        <button
+                            onClick={() =>
+                                handleDeleteComment(
+                                    comment._id,
+                                    post._id
+                                )
+                            }
+                        >
+                            Delete
+                        </button>
+
+                    </>
+
+                )}
 
             </div>
 
@@ -388,35 +562,6 @@ const handleDeleteComment = async (commentId, postId) => {
     }
 
 </div>
-
-                            {/* EDIT */}
-
-                            {user && user.username === post.username && (
-    <button
-        onClick={() => {
-
-            setEditingId(post._id)
-
-            setEditedCaption(post.caption)
-
-        }}
-    >
-        Edit
-    </button>
-)}
-
-
-                            {/* DELETE */}
-
-                           {user && user.username === post.username && (
-    <button
-        onClick={() =>
-            handleDelete(post._id)
-        }
-    >
-        Delete
-    </button>
-)}
 
                         </div>
 

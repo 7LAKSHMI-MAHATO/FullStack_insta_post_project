@@ -14,9 +14,9 @@ const postSchema= new mongoose.Schema({
         type: Number,
         default: 0
     },
-    liked: {
-        type: Boolean,
-        default: false
+    likedBy: {
+        type: [String],
+        default: []
     }
     
 })

@@ -256,10 +256,13 @@ app.delete("/comments/:commentId", async (req, res) => {
             })
         }
 
-        await commentModel.findByIdAndDelete(commentId)
+        // Update comment text
+        comment.text = text
+
+        await comment.save()
 
         return res.status(200).json({
-            message: "Comment deleted successfully",
+            message: "Comment updated successfully",
             comment
         })
 
@@ -268,12 +271,10 @@ app.delete("/comments/:commentId", async (req, res) => {
         console.error(error)
 
         return res.status(500).json({
-            message: "Failed to delete comment"
+            message: "Failed to update comment"
         })
     }
 })
-
-
 
 
 // read posts
@@ -337,7 +338,57 @@ app.delete("/posts/:id", async (req, res) => {
 
 
 
-// UPDATE POST CAPTION
+
+
+ // ================= DELETE CAPTION =================
+
+app.delete("/posts/:id/caption", async (req, res) => {
+
+    try {
+
+        const { username } = req.body
+
+        const post = await postModel.findById(req.params.id)
+
+        if (!post) {
+            return res.status(404).json({
+                error: "Post not found"
+            })
+        }
+
+        // Check post ownership
+        if (post.username !== username) {
+            return res.status(403).json({
+                error: "You can only delete your own caption"
+            })
+        }
+
+        // Delete only caption
+        post.caption = ""
+
+        await post.save()
+
+        return res.status(200).json({
+            message: "Caption deleted successfully",
+            post
+        })
+
+    } catch (err) {
+
+        console.error(err)
+
+        return res.status(500).json({
+            error: err.message || "Server error"
+        })
+    }
+})
+
+
+
+
+
+// ================= UPDATE POST CAPTION =================
+
 app.put("/posts/:id", async (req, res) => {
 
     try {
@@ -352,14 +403,14 @@ app.put("/posts/:id", async (req, res) => {
             })
         }
 
-        // Check if user is the owner
+        // Check post ownership
         if (post.username !== username) {
             return res.status(403).json({
                 error: "You can only edit your own post"
             })
         }
 
-        // Update caption
+        // Update only caption
         post.caption = caption
 
         await post.save()
@@ -387,6 +438,8 @@ app.put("/posts/:id/like", async (req, res) => {
 
     try {
 
+        const { username } = req.body
+
         const post = await postModel.findById(req.params.id)
 
         if (!post) {
@@ -395,18 +448,29 @@ app.put("/posts/:id/like", async (req, res) => {
             })
         }
 
-        // If already liked → Unlike
-        if (post.liked === true) {
-
-            post.liked = false
-            post.likes = Math.max(0, post.likes - 1)
-
+        if (!username) {
+            return res.status(400).json({
+                error: "Username is required"
+            })
         }
 
-        // If not liked → Like
-        else {
+        // Check if this user already liked the post
+        const alreadyLiked = post.likedBy.includes(username)
 
-            post.liked = true
+        if (alreadyLiked) {
+
+            // Unlike
+            post.likedBy = post.likedBy.filter(
+                (user) => user !== username
+            )
+
+            post.likes = Math.max(0, post.likes - 1)
+
+        } else {
+
+            // Like
+            post.likedBy.push(username)
+
             post.likes = post.likes + 1
 
         }
@@ -414,9 +478,9 @@ app.put("/posts/:id/like", async (req, res) => {
         await post.save()
 
         return res.status(200).json({
-            message: post.liked
-                ? "Post liked successfully"
-                : "Post unliked successfully",
+            message: alreadyLiked
+                ? "Post unliked successfully"
+                : "Post liked successfully",
             post
         })
 
@@ -429,7 +493,8 @@ app.put("/posts/:id/like", async (req, res) => {
         })
     }
 })
- 
+       
+
 
 
 
