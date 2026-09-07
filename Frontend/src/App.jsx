@@ -4,6 +4,8 @@ import CreatePost from './pages/CreatePost'
 import Feed from './pages/Feed'
 import Signup from './Signup'
 import Login from './Login'
+import Profile from './pages/Profile'
+import Search from './pages/Search'
 
 const App = () => {
 
@@ -28,13 +30,23 @@ const App = () => {
               <Link to="/create-post">Create Post</Link>
               {" | "}
 
+              
+              
+
+<Link to="/profile">Profile</Link>
+
+{"|"}
+<Link to="/search">Search</Link>
+{" \u00A0\u00A0 \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"}
+
               <button
                 onClick={() => {
                   localStorage.removeItem("user")
                   window.location.href = "/login"
                 }}
               >
-                Logout
+                
+                    Logout
               </button>
             </>
           ) : (
@@ -73,6 +85,16 @@ const App = () => {
             path="/login"
             element={<Login />}
           />
+<Route
+  path="/search"
+  element={<Search />}
+/>
+
+
+          <Route
+    path="/profile"
+    element={<Profile />}
+/>
 
         </Routes>
 

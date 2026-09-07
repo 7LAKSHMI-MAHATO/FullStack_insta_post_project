@@ -123,6 +123,130 @@ app.post("/login", async (req, res) => {
 const upload = multer({ storage:multer.memoryStorage() })
 
 
+
+// ================= UPDATE PROFILE =================
+
+app.put("/profile", async (req, res) => {
+
+    try {
+
+        const { oldUsername, newUsername } = req.body
+
+        if (!oldUsername || !newUsername) {
+            return res.status(400).json({
+                message: "Both usernames are required"
+            })
+        }
+
+        // Check if new username already exists
+        const existingUser = await userModel.findOne({
+            username: newUsername
+        })
+
+        if (existingUser) {
+            return res.status(400).json({
+                message: "Username already exists"
+            })
+        }
+
+        // Find current user
+        const user = await userModel.findOne({
+            username: oldUsername
+        })
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            })
+        }
+
+        // Update username in user's posts
+        await postModel.updateMany(
+            { username: oldUsername },
+            { $set: { username: newUsername } }
+        )
+
+        // Update username
+        user.username = newUsername
+
+        await user.save()
+
+        return res.status(200).json({
+            message: "Profile updated successfully",
+            user
+        })
+
+    } catch (error) {
+
+        console.error(error)
+
+        return res.status(500).json({
+            message: "Failed to update profile"
+        })
+    }
+
+})
+  
+// ================= UPLOAD PROFILE PICTURE =================
+
+app.put(
+    "/profile/image",
+    upload.single("profileImage"),
+    async (req, res) => {
+
+        try {
+
+            const { username } = req.body
+
+            if (!username) {
+                return res.status(400).json({
+                    message: "Username is required"
+                })
+            }
+
+            if (!req.file) {
+                return res.status(400).json({
+                    message: "Profile image is required"
+                })
+            }
+
+            // Upload image to ImageKit
+            const result = await uploadfile(req.file.buffer)
+            // Find user
+            const user = await userModel.findOne({
+                username: username
+            })
+
+            if (!user) {
+                return res.status(404).json({
+                    message: "User not found"
+                })
+            }
+
+            // Save ImageKit URL
+           user.profileImage = result.url
+
+            await user.save()
+
+            return res.status(200).json({
+                message: "Profile picture updated successfully",
+                user
+            })
+
+        } catch (error) {
+
+            console.error(error)
+
+            return res.status(500).json({
+                message: "Failed to upload profile picture"
+            })
+        }
+    }
+)
+
+
+
+
 // create post route
 
 app.post("/create-post", upload.single("image"), async (req,res)=>{
@@ -145,6 +269,8 @@ app.post("/create-post", upload.single("image"), async (req,res)=>{
         caption: req.body.caption,
         username: req.body.username
     })
+
+    console.log("POST SAVED:", post)
     
    return res.status(201).json({
     message:"post created successflly in db",
@@ -249,21 +375,18 @@ app.delete("/comments/:commentId", async (req, res) => {
             })
         }
 
-        // Check if user is the owner of the comment
+        // Check if user owns the comment
         if (comment.username !== username) {
             return res.status(403).json({
                 message: "You can only delete your own comment"
             })
         }
 
-        // Update comment text
-        comment.text = text
-
-        await comment.save()
+        // Delete comment
+        await commentModel.findByIdAndDelete(commentId)
 
         return res.status(200).json({
-            message: "Comment updated successfully",
-            comment
+            message: "Comment deleted successfully"
         })
 
     } catch (error) {
@@ -271,7 +394,7 @@ app.delete("/comments/:commentId", async (req, res) => {
         console.error(error)
 
         return res.status(500).json({
-            message: "Failed to update comment"
+            message: "Failed to delete comment"
         })
     }
 })
@@ -494,6 +617,50 @@ app.put("/posts/:id/like", async (req, res) => {
     }
 })
        
+
+
+// ================= SEARCH USERS & POSTS =================
+app.get("/search", async (req, res) => {
+    try {
+        const { query } = req.query
+
+        if (!query || !query.trim()) {
+            return res.status(400).json({
+                message: "Search query is required"
+            })
+        }
+
+        const searchTerm = query.trim()
+
+        // Search users by username
+        const users = await userModel.find({
+            username: {
+                $regex: searchTerm,
+                $options: "i"
+            }
+        }).select("username profileImage")
+
+        // Search posts by caption
+        const posts = await postModel.find({
+            caption: {
+                $regex: searchTerm,
+                $options: "i"
+            }
+        })
+
+        return res.status(200).json({
+            users,
+            posts
+        })
+
+    } catch (error) {
+        console.error(error)
+
+        return res.status(500).json({
+            message: "Search failed"
+        })
+    }
+})
 
 
 

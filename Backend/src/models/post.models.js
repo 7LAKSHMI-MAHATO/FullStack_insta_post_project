@@ -17,7 +17,12 @@ const postSchema= new mongoose.Schema({
     likedBy: {
         type: [String],
         default: []
-    }
+    },
+
+    SavedBy: {
+        type: [String],
+        default: []}
+    
     
 })
 
